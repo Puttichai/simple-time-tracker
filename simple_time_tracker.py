@@ -21,9 +21,10 @@ APP_TITLE = "Time Tracker"
 LOG_DIR = os.path.join(os.path.expanduser("~"), ".simple_time_tracker")
 JSONL_PATH = os.path.join(LOG_DIR, "time_log.jsonl")
 CSV_PATH = os.path.join(LOG_DIR, "time_log.csv")
-AUTO_TOPMOST = True   # keep the tiny window always on top
-REFRESH_MS = 200      # UI refresh interval (ms)
+AUTO_TOPMOST = True  # keep the tiny window always on top
+REFRESH_MS = 200  # UI refresh interval (ms)
 STATUSES = ["done", "in_progress", "blocked", "review", "cancelled", "other"]
+
 
 # ----------------- Data model -----------------
 @dataclass
@@ -51,6 +52,7 @@ class TimeEntry:
             self.status,
         ]
 
+
 CSV_HEADER = [
     "id",
     "date",
@@ -62,6 +64,7 @@ CSV_HEADER = [
     "note",
     "status",
 ]
+
 
 # ----------------- Helpers -----------------
 def ensure_paths():
@@ -76,11 +79,13 @@ def ensure_paths():
         with open(JSONL_PATH, "w", encoding="utf-8") as f:
             pass
 
+
 def fmt_hms(seconds: int) -> str:
     h = seconds // 3600
     m = (seconds % 3600) // 60
     s = seconds % 60
     return f"{h:02d}:{m:02d}:{s:02d}"
+
 
 # ----------------- Entry dialog -----------------
 class EntryDialog(tk.Toplevel):
@@ -90,19 +95,23 @@ class EntryDialog(tk.Toplevel):
         self.resizable(False, False)
         self.grab_set()  # modal
 
-        ttk.Label(self, text=f"Duration: {duration_hms}").grid(row=0, column=0, columnspan=2, pady=(8,4), padx=10, sticky="w")
+        ttk.Label(self, text=f"Duration: {duration_hms}").grid(
+            row=0, column=0, columnspan=2, pady=(8, 4), padx=10, sticky="w"
+        )
 
-        ttk.Label(self, text="Link (ticket / MR)").grid(row=1, column=0, sticky="e", padx=(10,6), pady=4)
+        ttk.Label(self, text="Link (ticket / MR)").grid(row=1, column=0, sticky="e", padx=(10, 6), pady=4)
         self.link_var = tk.StringVar()
-        ttk.Entry(self, textvariable=self.link_var, width=42).grid(row=1, column=1, sticky="we", padx=(0,10), pady=4)
+        ttk.Entry(self, textvariable=self.link_var, width=42).grid(row=1, column=1, sticky="we", padx=(0, 10), pady=4)
 
-        ttk.Label(self, text="Note").grid(row=2, column=0, sticky="e", padx=(10,6), pady=4)
+        ttk.Label(self, text="Note").grid(row=2, column=0, sticky="e", padx=(10, 6), pady=4)
         self.note_var = tk.StringVar()
-        ttk.Entry(self, textvariable=self.note_var, width=42).grid(row=2, column=1, sticky="we", padx=(0,10), pady=4)
+        ttk.Entry(self, textvariable=self.note_var, width=42).grid(row=2, column=1, sticky="we", padx=(0, 10), pady=4)
 
-        ttk.Label(self, text="Status").grid(row=3, column=0, sticky="e", padx=(10,6), pady=4)
+        ttk.Label(self, text="Status").grid(row=3, column=0, sticky="e", padx=(10, 6), pady=4)
         self.status_var = tk.StringVar(value=STATUSES[0])
-        ttk.Combobox(self, textvariable=self.status_var, values=STATUSES, state="readonly", width=39).grid(row=3, column=1, sticky="we", padx=(0,10), pady=4)
+        ttk.Combobox(self, textvariable=self.status_var, values=STATUSES, state="readonly", width=39).grid(
+            row=3, column=1, sticky="we", padx=(0, 10), pady=4
+        )
 
         btns = ttk.Frame(self)
         btns.grid(row=4, column=0, columnspan=2, pady=10)
@@ -124,6 +133,7 @@ class EntryDialog(tk.Toplevel):
     def _cancel(self):
         self.result = None
         self.destroy()
+
 
 # ----------------- Main app -----------------
 class TimeTrackerApp(tk.Tk):
@@ -147,7 +157,7 @@ class TimeTrackerApp(tk.Tk):
         main.pack(fill=tk.BOTH, expand=True)
 
         self.elapsed_lbl = ttk.Label(main, text="00:00:00", font=("TkDefaultFont", 16, "bold"))
-        self.elapsed_lbl.pack(pady=(0,6))
+        self.elapsed_lbl.pack(pady=(0, 6))
 
         btns = ttk.Frame(main)
         btns.pack()
@@ -295,7 +305,7 @@ class TimeTrackerApp(tk.Tk):
 
 if __name__ == "__main__":
     try:
-        from tkinter import _tkinter  # noqa: F401
+        import _tkinter  # type: ignore  # noqa: F401
     except Exception:
         print("Tkinter is required. On Debian/Ubuntu: sudo apt-get install python3-tk")
         raise
