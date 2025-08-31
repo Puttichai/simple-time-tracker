@@ -19,8 +19,10 @@ from tkinter import ttk, messagebox
 # ----------------- Config -----------------
 APP_TITLE = "Time Tracker"
 LOG_DIR = os.path.join(os.path.expanduser("~"), ".simple_time_tracker")
-JSONL_PATH = os.path.join(LOG_DIR, "time_log.jsonl")
-CSV_PATH = os.path.join(LOG_DIR, "time_log.csv")
+def get_log_paths(date_str: str):
+    jsonl_path = os.path.join(LOG_DIR, f"time_log-{date_str}.jsonl")
+    csv_path = os.path.join(LOG_DIR, f"time_log-{date_str}.csv")
+    return jsonl_path, csv_path
 AUTO_TOPMOST = True  # keep the tiny window always on top
 REFRESH_MS = 200  # UI refresh interval (ms)
 STATUSES = ["done", "in_progress", "blocked", "review", "cancelled", "other"]
@@ -67,16 +69,17 @@ CSV_HEADER = [
 
 
 # ----------------- Helpers -----------------
-def ensure_paths():
+def ensure_paths(date_str: str):
     os.makedirs(LOG_DIR, exist_ok=True)
+    jsonl_path, csv_path = get_log_paths(date_str)
     # create CSV with header if new
-    if not os.path.exists(CSV_PATH):
-        with open(CSV_PATH, "w", newline="", encoding="utf-8") as f:
+    if not os.path.exists(csv_path):
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(CSV_HEADER)
     # touch JSONL file
-    if not os.path.exists(JSONL_PATH):
-        with open(JSONL_PATH, "w", encoding="utf-8") as f:
+    if not os.path.exists(jsonl_path):
+        with open(jsonl_path, "w", encoding="utf-8") as f:
             pass
 
 
@@ -173,8 +176,9 @@ class TimeTrackerApp(tk.Tk):
         # shortcuts
         self.bind("<space>", lambda e: self._toggle_play_pause())
         self.bind("<Control-s>", lambda e: self.on_stop())
-
-        ensure_paths()
+        today = datetime.now().strftime("%Y-%m-%d")
+        ensure_paths(today)
+        self._log_date = today
 
     # ----------- State helpers -----------
     def _toggle_play_pause(self):
@@ -189,11 +193,18 @@ class TimeTrackerApp(tk.Tk):
         self.stop_btn.state(["!disabled"] if self.state in {"running", "paused"} else ["disabled"])
 
     def _tick(self):
+        self._rotate_if_new_day()
         total = self.accum_seconds
         if self.state == "running" and self._last_resume_at is not None:
             total += int(time.time() - self._last_resume_at)
         self.elapsed_lbl.config(text=fmt_hms(total))
         self._tick_job = self.after(REFRESH_MS, self._tick)
+
+    def _rotate_if_new_day(self):
+        today = datetime.now().strftime("%Y-%m-%d")
+        if today != self._log_date:
+            ensure_paths(today)
+            self._log_date = today
 
     # ----------- Button handlers -----------
     def on_play(self):
@@ -268,10 +279,12 @@ class TimeTrackerApp(tk.Tk):
         )
 
         # write logs
+        jsonl_path, csv_path = get_log_paths(entry.date)
+        ensure_paths(entry.date)
         try:
-            with open(JSONL_PATH, "a", encoding="utf-8") as jf:
+            with open(jsonl_path, "a", encoding="utf-8") as jf:
                 jf.write(json.dumps(asdict(entry), ensure_ascii=False) + "\n")
-            with open(CSV_PATH, "a", newline="", encoding="utf-8") as cf:
+            with open(csv_path, "a", newline="", encoding="utf-8") as cf:
                 writer = csv.writer(cf)
                 writer.writerow(entry.to_row())
         except Exception as e:
