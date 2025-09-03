@@ -10,6 +10,8 @@ import csv
 import json
 import os
 import time
+import subprocess
+import sys
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
@@ -151,6 +153,7 @@ class TimeTrackerApp(tk.Tk):
         if AUTO_TOPMOST:
             self.wm_attributes("-topmost", 1)
             self.after(1000, self._keep_on_top)
+        self.after(0, self._make_sticky)
 
         self._last_user_action = time.time()
         self.bind_all("<Key>", self._on_user_action, add="+")
@@ -230,11 +233,21 @@ class TimeTrackerApp(tk.Tk):
             except Exception:
                 pass
 
+    def _make_sticky(self):
+        if sys.platform.startswith("linux"):
+            try:
+                self.update_idletasks()
+                window_id = self.winfo_id()
+                subprocess.run(["wmctrl", "-i", "-r", str(window_id), "-b", "add,sticky"], check=False)
+            except Exception:
+                pass
+
     def _keep_on_top(self):
         if AUTO_TOPMOST:
             try:
                 self.wm_attributes("-topmost", 1)
                 self.lift()
+                self._defocus_if_idle()
             except Exception:
                 pass
             self.after(1000, self._keep_on_top)
