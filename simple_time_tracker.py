@@ -10,6 +10,8 @@ import csv
 import json
 import os
 import time
+import subprocess
+import sys
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
@@ -19,10 +21,14 @@ from tkinter import ttk, messagebox
 # ----------------- Config -----------------
 APP_TITLE = "Time Tracker"
 LOG_DIR = os.path.join(os.path.expanduser("~"), ".simple_time_tracker")
+
+
 def get_log_paths(date_str: str):
     jsonl_path = os.path.join(LOG_DIR, f"time_log-{date_str}.jsonl")
     csv_path = os.path.join(LOG_DIR, f"time_log-{date_str}.csv")
     return jsonl_path, csv_path
+
+
 AUTO_TOPMOST = True  # keep the tiny window always on top
 REFRESH_MS = 200  # UI refresh interval (ms)
 STATUSES = ["done", "in_progress", "blocked", "review", "cancelled", "other"]
@@ -146,6 +152,13 @@ class TimeTrackerApp(tk.Tk):
         self.resizable(False, False)
         if AUTO_TOPMOST:
             self.wm_attributes("-topmost", 1)
+            self.after(1000, self._keep_on_top)
+        self.after(0, self._make_sticky)
+
+        self._last_user_action = time.time()
+        self.bind_all("<Key>", self._on_user_action, add="+")
+        self.bind_all("<Button>", self._on_user_action, add="+")
+        self.bind("<FocusIn>", self._on_focus_in, add="+")
 
         # State
         self.state = "idle"  # idle | running | paused
@@ -205,6 +218,39 @@ class TimeTrackerApp(tk.Tk):
         if today != self._log_date:
             ensure_paths(today)
             self._log_date = today
+
+    def _on_user_action(self, _event=None):
+        self._last_user_action = time.time()
+
+    def _on_focus_in(self, _event=None):
+        self.lift()
+        self.after(50, self._defocus_if_idle)
+
+    def _defocus_if_idle(self):
+        if time.time() - self._last_user_action > 0.1:
+            try:
+                self.tk.call("focus", "none")
+            except Exception:
+                pass
+
+    def _make_sticky(self):
+        if sys.platform.startswith("linux"):
+            try:
+                self.update_idletasks()
+                window_id = self.winfo_id()
+                subprocess.run(["wmctrl", "-i", "-r", str(window_id), "-b", "add,sticky"], check=False)
+            except Exception:
+                pass
+
+    def _keep_on_top(self):
+        if AUTO_TOPMOST:
+            try:
+                self.wm_attributes("-topmost", 1)
+                self.lift()
+                self._defocus_if_idle()
+            except Exception:
+                pass
+            self.after(1000, self._keep_on_top)
 
     # ----------- Button handlers -----------
     def on_play(self):
